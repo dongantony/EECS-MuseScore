@@ -85,6 +85,11 @@ QString muse::ipc::socketErrorToString(int err)
 
 bool muse::ipc::writeToSocket(QLocalSocket* socket, const QByteArray& data)
 {
+    if (data.size() > MAX_PACKAGE_SIZE) {
+        LOGE() << "Attempted to write data larger than MAX_PACKAGE_SIZE: " << data.size();
+        return false;
+    }
+
     QDataStream stream(socket);
     stream.writeBytes(data.constData(), data.size());
     bool ok = socket->waitForBytesWritten(ipc::TIMEOUT_MSEC);
@@ -110,7 +115,8 @@ bool muse::ipc::readFromSocket(QLocalSocket* socket, std::function<void(const QB
         QByteArray data;
         uint32_t remaining;
         stream >> remaining;
-        IF_ASSERT_FAILED(remaining <= MAX_PACKAGE_SIZE) {
+        if (remaining > MAX_PACKAGE_SIZE) {
+            LOGE() << "Assertion failed, remaining: " << remaining << ", MAX_PACKAGE_SIZE: " << MAX_PACKAGE_SIZE;
             return false;
         }
         data.resize(remaining);
